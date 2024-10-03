@@ -1,0 +1,65 @@
+#include <Arduino.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h> // Biblioteca para o display I2C
+
+#define col 16                // Número de colunas do display
+#define lin  2                // Número de linhas do display
+#define ende  0x27            // Endereço I2C do display (pode variar, use scanner I2C para verificar)
+
+LiquidCrystal_I2C lcd(ende, col, lin); // Inicializa o display I2C
+
+String inputString = "";               // Buffer de entrada da serial
+volatile boolean comandoSerial = false; // Flag que indica que uma string completa foi recebida
+
+// Função para processar os dados recebidos pela Serial1 (da comunicação com outro Arduino)
+void serialEvent1() {
+  while (Serial1.available()) {
+    char inChar = (char)Serial1.read();  // Lê o byte recebido
+    inputString += inChar;               // Adiciona-o ao buffer de string
+    if (inChar == '\n') {                // Quando o caractere de nova linha é recebido, a string está completa
+      comandoSerial = true;
+    }
+  }
+}
+
+// Função que trata os dados recebidos
+void serialEventLoop() {
+  if (comandoSerial) {
+    comandoSerial = false;                  // Reseta a flag após tratar o comando
+    String str = inputString;               // Copia a string recebida
+    inputString = "";                       // Limpa o buffer
+
+    // Limpa o LCD e exibe a string recebida
+    lcd.clear();
+    lcd.setCursor(0, 0);        // Define o cursor na primeira linha
+    lcd.print("Recebido:");
+
+    lcd.setCursor(0, 1);        // Define o cursor na segunda linha
+    lcd.print(str);
+
+    // Também imprime no monitor serial
+    Serial.print("Recebido: ");
+    Serial.println(str);
+
+    // Opcionalmente, adicione mais lógica para tratar comandos específicos (como "Ok")
+    if (str.substring(0, 2) == "Ok") {
+      Serial.println("Recebeu comando 'Ok'!");
+    }
+  }
+}
+
+void setup() {
+  lcd.init();           // Inicializa o display LCD I2C
+  lcd.backlight();      // Liga o backlight do display
+  lcd.clear();          // Limpa a tela do display
+
+  Serial1.begin(9600); // Inicia a Serial1 para comunicação com outro Arduino
+  Serial.begin(9600);  // Inicia o monitor serial para depuração
+
+  lcd.setCursor(0, 0);
+  lcd.print("Aguardando...");
+}
+
+void loop() {
+  serialEventLoop();  // Verifica se novos dados foram recebidos e exibe no LCD
+}
