@@ -1,83 +1,49 @@
 #include <Arduino.h>
-#include <Wire.h>
-#include <LiquidCrystal_I2C.h> // Biblioteca para o display I2C
+#include <DHT.h>
 
-#define col 16                // Número de colunas do display
-#define lin  2                // Número de linhas do display
-#define ende  0x27            // Endereço I2C do display
-#define LED 13                // Pino do LED
+#define DHTPIN 5
+#define LED 4
+#define DHTTYPE DHT11   // DHT 22  (AM2302), AM2321
 
-LiquidCrystal_I2C lcd(ende, col, lin); // Inicializa o display I2C
-
-String inputString = "";               // Buffer de entrada da serial
-volatile boolean comandoSerial = false; // Flag que indica que uma string completa foi recebida
-
-float h = 10.00;  // Umidade inicial
-float t = 10.00;  // Temperatura inicial
-
-// Função para processar os dados recebidos pela Serial1 (da ESP32)
-void serialEvent1() {
-  while (Serial1.available()) {
-    char inChar = (char)Serial1.read();  // Lê o byte recebido
-    inputString += inChar;               // Adiciona-o ao buffer de string
-    if (inChar == '\n') {                // Quando o caractere de nova linha é recebido, a string está completa
-      comandoSerial = true;
-    }
-  }
-}
-
-// Função que trata os dados recebidos da ESP32
-void serialEventLoop() {
-  if (comandoSerial) {
-    comandoSerial = false;                  // Reseta a flag após tratar o comando
-    String str = inputString;               // Copia a string recebida
-    inputString = "";                       // Limpa o buffer
-
-    if (str.length() > 1) {
-      if (str.substring(0, 1) == "U") {     // Verifica se a string contém "U" (umidade)
-        String conv = str.substring(2);     // Extrai a parte numérica
-        h = conv.toFloat();                 // Converte para float
-        Serial.print("Umidade recebida: ");
-        Serial.println(h, 2);               // Exibe a umidade no monitor serial
-      } else if (str.substring(0, 1) == "T") {  // Verifica se a string contém "T" (temperatura)
-        String conv = str.substring(2);     // Extrai a parte numérica
-        t = conv.toFloat();                 // Converte para float
-        Serial.print("Temperatura recebida: ");
-        Serial.println(t, 2);               // Exibe a temperatura no monitor serial
-      }
-
-      // Pisca o LED no pino 13 para indicar que os dados foram recebidos
-      digitalWrite(LED, HIGH);
-      delay(500);  // Mantém o LED ligado por 500 ms
-      digitalWrite(LED, LOW);
-    }
-  }
-}
+DHT dht(DHTPIN, DHTTYPE);
 
 void setup() {
-  lcd.init();           // Inicializa o display LCD
-  lcd.backlight();      // Liga o backlight do display
-  lcd.clear();          // Limpa a tela do display
+  Serial.begin(115200);  // Comunicação serial para enviar dados
+  Serial.println(F("DHT11 test!"));
 
-  delay(1000);          // Espera 1 segundo para inicialização
-
-  Serial1.begin(115200); // Inicia a Serial1 para comunicação com a ESP32
-  Serial.begin(115200);  // Inicia o monitor serial para depuração
-
-  pinMode(LED, OUTPUT);  // Configura o pino do LED como saída
-
-  Serial.println(F("Inicio da Captura!"));
+  dht.begin();  
+  pinMode(LED, OUTPUT);
 }
 
 void loop() {
-  // Atualiza o display com os valores de umidade e temperatura
-  lcd.setCursor(0, 0);
-  lcd.print("U:");
-  lcd.print(h, 2);  // Exibe a umidade com 2 casas decimais
-
-  lcd.setCursor(0, 1);
-  lcd.print("T:");
-  lcd.print(t, 2);  // Exibe a temperatura com 2 casas decimais
   
-  serialEventLoop();  // Verifica se novos dados foram recebidos
+  // Leitura da umidade e temperatura
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+
+  
+  // Verifica se a leitura do sensor falhou
+  if (isnan(h) || isnan(t)) {
+    Serial.println(F("Failed to read from DHT sensor!"));
+    return;
+  }
+
+  if (t >= 24 && t <= 30) {
+    // Liga o LED se a temperatura estiver na faixa
+    digitalWrite(LED, HIGH);
+  } else {
+    // Desliga o LED se a temperatura estiver fora da faixa
+    digitalWrite(LED, LOW);
+  }
+  
+  // Enviar os dados no formato esperado pelo Arduino Mega
+  Serial.print("U:");
+  Serial.println(h);  // Envia a umidade
+
+  delay(1000);
+
+  Serial.print("T:");
+  Serial.println(t);  // Envia a temperatura
+
+  delay(1000);
 }
