@@ -1,0 +1,36 @@
+#include <Arduino.h>
+
+int numIncrementado = 0;
+int numDecrementado = 100;
+
+void setup() {
+  Serial.begin(9600);   // Porta Serial (TX0 e RX0) para monitoramento
+  Serial1.begin(9600);  // Porta Serial1 (TX1 e RX1) para comunicação com outro Arduino
+}
+
+void loop() {
+  // Envia números incrementado e decrementado pela Serial1
+  Serial1.print("Serial 1: ");
+  Serial1.print(numIncrementado);
+  Serial1.print(" | ");
+  Serial1.println(numDecrementado);
+
+  // Incrementa e decrementa os valores
+  numIncrementado++;
+  numDecrementado--;
+
+  // Exibe no monitor Serial para depuração
+  Serial.print("Enviando para Arduino 2 -> Incrementado: ");
+  Serial.print(numIncrementado);
+  Serial.print(" | Decrementado: ");
+  Serial.println(numDecrementado);
+
+  // Delay para espaçar as mensagens
+  delay(500);
+
+  // Reinicia os números quando o decrementado chegar a zero (opcional)
+  if (numDecrementado < 0) {
+    numIncrementado = 0;
+    numDecrementado = 100;
+  }
+}
